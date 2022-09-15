@@ -24,7 +24,7 @@ public class MinutesAlertsApp {
     public static final String BROKER = "localhost:9092";
     public static final String SCHEMA_REGISTRY_URL = "http://localhost:8090";
     public static final int WINDOW_SIZE = 1;
-    public static final long MAX_SUM = 30;
+    public static final long MAX_SUM = 3000;
 
 
     public static void main(String[] args) {
