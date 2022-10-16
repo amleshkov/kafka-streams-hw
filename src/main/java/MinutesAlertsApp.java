@@ -86,13 +86,12 @@ public class MinutesAlertsApp {
         );
         Duration oneMinute = Duration.ofMinutes(WINDOW_SIZE);
         purchaseWithJoinedProduct
-                .filter((key, val) -> val.success)
                 .mapValues(val -> val.result)
-                .groupBy((key, val) -> val.get("productid").toString(), Grouped.with(new Serdes.StringSerde(), avroSerde))
+                .groupBy((key, val) -> val.get("product_id").toString(), Grouped.with(new Serdes.StringSerde(), avroSerde))
                 .windowedBy(TimeWindows.of(oneMinute).advanceBy(oneMinute))
                 .aggregate(
                         () -> 0L,
-                        (key, val, agg) -> agg += (Long) val.get("purchase_quantity") * (Long) val.get("product_price"),
+                        (key, val, agg) -> agg += (Long) val.get("purchase_quantity") * ((Double) val.get("product_price")).longValue(),
                         Materialized.with(new Serdes.StringSerde(), new Serdes.LongSerde())
                 )
                 .filter((key, val) -> val > MAX_SUM)
@@ -100,7 +99,7 @@ public class MinutesAlertsApp {
                 .map((key, val) -> {
                     Schema schema = SchemaBuilder.record("SumAlert").fields()
                             .name("window_start")
-                            .type(LogicalTypes.timeMillis().addToSchema(Schema.create(Schema.Type.LONG)))
+                            .type(LogicalTypes.timestampMillis().addToSchema(Schema.create(Schema.Type.LONG)))
                             .noDefault()
                             .requiredLong("sum")
                             .endRecord();
@@ -124,11 +123,9 @@ public class MinutesAlertsApp {
                     .requiredDouble("product_price")
                     .endRecord();
             GenericRecord result = new GenericData.Record(schema);
-            // копируем в наше сообщение нужные поля из сообщения о покупке
-            result.put("purchase_id", purchase.get("id").toString());
+            result.put("purchase_id", purchase.get("id"));
             result.put("purchase_quantity", purchase.get("quantity"));
             result.put("product_id", purchase.get("productid"));
-            // копируем в наше сообщение нужные поля из сообщения о товаре
             result.put("product_name", product.get("name"));
             result.put("product_price", product.get("price"));
             return new JoinResult(true, result, null);
